@@ -5,16 +5,18 @@
 # Copyright (C) 2019 KFERMercer <KFER.Mercer@gmail.com>
 # 
 # <https://github.com/KFERMercer/OpenWrt-CI>
-# 
+#
 
 name: OpenWrt-CI
 
 on:
-  schedule:
-    - cron: 0 20 * * *
-  # push:
-  #   branches: 
-  #     - master
+  push:
+    branches: 
+      - master
+  # schedule:
+  #   - cron: 0 20 * * *
+  # release:
+  #   types: [published]
 
 jobs:
   build:
@@ -65,21 +67,21 @@ jobs:
           touch ./.config
 
           #
-          # ========================固件定制部分========================
+          # ========================固件定製部分========================
           # 
 
           # 
-          # 如果不对本区块做出任何编辑, 则生成默认配置固件. 
+          # 如果不對本區塊做出任何編輯, 則生成默認配置固件. 
           # 
 
-          # 以下为定制化固件选项和说明:
+          # 以下為定製化固件選項和說明:
           #
 
           #
-          # 有些插件/选项是默认开启的, 如果想要关闭, 请参照以下示例进行编写:
+          # 有些插件/選項是默認開啟的, 如果想要關閉, 請參照以下示例進行編寫:
           # 
           #          =========================================
-          #         |  # 取消编译VMware镜像:                   |
+          #         |  # 取消編譯VMware鏡像:                   |
           #         |  cat >> .config <<EOF                   |
           #         |  # CONFIG_VMDK_IMAGES is not set        |
           #         |  EOF                                    |
@@ -87,29 +89,29 @@ jobs:
           #
 
           # 
-          # 以下是一些提前准备好的一些插件选项.
-          # 直接取消注释相应代码块即可应用. 不要取消注释代码块上的汉字说明.
-          # 如果不需要代码块里的某一项配置, 只需要删除相应行.
+          # 以下是一些提前準備好的一些插件選項.
+          # 直接取消註釋相應代碼塊即可應用. 不要取消註釋代碼塊上的漢字說明.
+          # 如果不需要代碼塊裡的某一項配置, 只需要刪除相應行.
           #
-          # 如果需要其他插件, 请按照示例自行添加.
-          # 注意, 只需添加依赖链顶端的包. 如果你需要插件 A, 同时 A 依赖 B, 即只需要添加 A.
+          # 如果需要其他插件, 請按照示例自行添加.
+          # 注意, 只需添加依賴鏈頂端的包. 如果你需要插件 A, 同時 A 依賴 B, 即只需要添加 A.
           # 
-          # 无论你想要对固件进行怎样的定制, 都需要且只需要修改 EOF 回环内的内容.
+          # 無論你想要對固件進行怎樣的定製, 都需要且只需要修改 EOF 迴環內的內容.
           # 
 
-          # 编译x64固件:
+          # 編譯x64固件:
           # cat >> .config <<EOF
           # CONFIG_TARGET_x86=y
           # CONFIG_TARGET_x86_64=y
           # CONFIG_TARGET_x86_64_Generic=y
           # EOF
 
-          # 固件压缩:
+          # 固件壓縮:
           # cat >> .config <<EOF
           # CONFIG_TARGET_IMAGES_GZIP=y
           # EOF
 
-          # 编译UEFI固件:
+          # 編譯UEFI固件:
           # cat >> .config <<EOF
           # CONFIG_EFI_IMAGES=y
           # EOF
@@ -120,7 +122,7 @@ jobs:
           # CONFIG_PACKAGE_ipv6helper=y
           # EOF
 
-          # 多文件系统支持:
+          # 多文件系統支持:
           # cat >> .config <<EOF
           # CONFIG_PACKAGE_kmod-fs-nfs=y
           # CONFIG_PACKAGE_kmod-fs-nfs-common=y
@@ -139,7 +141,7 @@ jobs:
           # CONFIG_PACKAGE_kmod-usb3=y
           # EOF
 
-          # 常用LuCI插件选择:
+          # 常用LuCI插件選擇:
           # cat >> .config <<EOF
           # CONFIG_PACKAGE_luci-app-adbyby-plus=y
           # CONFIG_PACKAGE_luci-app-aria2=y
@@ -165,13 +167,13 @@ jobs:
           # CONFIG_PACKAGE_luci-app-wrtbwmon=y
           # EOF
 
-          # LuCI主题:
+          # LuCI主題:
           # cat >> .config <<EOF
           # CONFIG_PACKAGE_luci-theme-argon=y
           # CONFIG_PACKAGE_luci-theme-netgear=y
           # EOF
 
-          # 常用软件包:
+          # 常用軟件包:
           # cat >> .config <<EOF
           # CONFIG_PACKAGE_curl=y
           # CONFIG_PACKAGE_htop=y
@@ -182,20 +184,20 @@ jobs:
           # CONFIG_PACKAGE_wget=y
           # EOF
 
-          # 取消编译VMware镜像以及镜像填充 (不要删除被缩进的注释符号):
+          # 取消編譯VMware鏡像以及鏡像填充 (不要刪除被縮進的註釋符號):
           # cat >> .config <<EOF
           # # CONFIG_TARGET_IMAGES_PAD is not set
           # # CONFIG_VMDK_IMAGES is not set
           # EOF
 
           # 
-          # ========================固件定制部分结束========================
+          # ========================固件定製部分結束========================
           # 
 
           sed -i 's/^[ \t]*//g' ./.config
           make defconfig
 
-      - name: Download package source code
+      - name: Make download
         run: |
           make download -j8
           find dl -size -1024c -exec ls -l {} \;
@@ -206,8 +208,15 @@ jobs:
           echo -e "$(nproc) thread build."
           make -j$(nproc) V=s
 
-      - name : Upload artifact
+      - name: Assemble artifact
+        run: |
+          rm -rf ./artifact/
+          mkdir -p ./artifact/
+          find ./bin/targets/ -name "*combined*img*" | xargs -i mv -f {} ./artifact/
+          find ./bin/targets/ -name "*sysupgrade*bin*" | xargs -i mv -f {} ./artifact/
+
+      - name: Upload artifact
         uses: actions/upload-artifact@master
         with:
           name: OpenWrt firmware
-          path: bin/targets
+          path: ./artifact/
